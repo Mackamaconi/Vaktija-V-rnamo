@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaktija – Džemat Värnamo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Noto+Sans:wght@400;500;600;700;800&family=Noto+Naskh+Arabic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#0d5946;
+  --green-dark:#084636;
+  --beige:#f2d29e;
+  --gold:#bd9151;
+  --ink:#11110f;
+  --shadow-dark:rgba(45,26,10,.38);
+  --shadow-soft:rgba(0,0,0,.22);
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#201710;font-family:"Noto Sans",Arial,sans-serif;}
+body{display:flex;align-items:center;justify-content:center;}
+.stage{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  background:#1d140f;
+}
+.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:block;}
+.overlay{position:absolute;inset:0;}
+.dynamic{position:absolute; z-index:2; text-align:center; font-variant-numeric:tabular-nums;}
+.shadow-light{text-shadow:0 2px 4px rgba(0,0,0,.18), 0 7px 14px rgba(0,0,0,.10);}
+.shadow-dark{text-shadow:0 1px 2px rgba(255,255,255,.2), 0 3px 8px rgba(0,0,0,.10);}
+.shadow-strong{text-shadow:0 3px 6px var(--shadow-dark),0 10px 18px rgba(0,0,0,.14);}
+
+/* top clock */
+#clock{left:0;right:0;top:15.75%;font-size:clamp(54px,8vw,92px);font-weight:800;line-height:1;color:#fffdf8;letter-spacing:1px;}
+
+/* dates */
+.greg-day-name, .hijri-day-name{
+  color:#fffdf8;font-weight:800;letter-spacing:1.4px;
+  writing-mode:vertical-rl; transform:rotate(180deg);
+  font-size:clamp(16px,1.6vw,24px);
+}
+.greg-day-name{left:0.65%; top:33.05%; width:4.6%; height:10.4%; display:flex; align-items:center; justify-content:center;}
+.hijri-day-name{left:49.85%; top:33.05%; width:4.6%; height:10.4%; display:flex; align-items:center; justify-content:center;}
+#gregDay{left:6.7%; top:32.3%; width:13%; font-size:clamp(52px,6vw,86px); font-weight:800; color:#10100f; line-height:1;}
+#gregMonth{left:20.5%; top:32.00%; width:22%; font-size:clamp(28px,3.15vw,46px); font-weight:700; text-align:left; color:#141412; font-family:"Cairo","Noto Sans",sans-serif;}
+#gregYear{left:20.7%; top:37.70%; width:14%; font-size:clamp(22px,2.2vw,33px); font-weight:700; text-align:left; color:#252019; font-family:"Cairo","Noto Sans",sans-serif;}
+#hijriDay{left:58.1%; top:32.3%; width:13%; font-size:clamp(52px,6vw,86px); font-weight:800; color:#10100f; line-height:1;}
+#hijriMonth{left:71.3%; top:32.00%; width:22%; font-size:clamp(26px,2.95vw,45px); font-weight:700; text-align:left; color:#141412; font-family:"Cairo","Noto Sans",sans-serif;}
+#hijriYear{left:71.5%; top:37.60%; width:14%; font-size:clamp(22px,2.2vw,33px); font-weight:700; text-align:left; color:#252019; font-family:"Cairo","Noto Sans",sans-serif;}
+
+/* prayer times only, background already contains names/ar labels */
+.prayer-time{
+  color:#0d0c0b;
+  font-weight:800;
+  font-size:clamp(34px,4.15vw,66px);
+  line-height:1;
+  transform:translateX(-50%);
+  white-space:nowrap;
+}
+#t0{left:8.73%; top:53.20%; width:13.4%;}
+#t1{left:25.18%; top:53.20%; width:13.4%;}
+#t2{left:41.57%; top:53.20%; width:13.4%;}
+#t3{left:58.25%; top:53.20%; width:13.4%;}
+#t4{left:74.67%; top:53.20%; width:13.4%;}
+#t5{left:91.15%; top:53.20%; width:13.4%;}
+
+/* countdown */
+#nextPrayerName{
+  left:18%; right:18%; top:79.75%;
+  color:#fffdf8; font-weight:800; font-size:clamp(22px,2.15vw,36px); letter-spacing:.8px;
+}
+#countdown{
+  left:0; right:0; top:84.0%;
+  color:var(--beige); font-weight:800; font-size:clamp(60px,7.8vw,104px); line-height:1;
+}
+
+/* no-schedule fallback */
+#statusMsg{left:0; right:0; bottom:2%; color:#fff; font-size:18px; display:none;}
+
+/* 5 minute alert */
+.prayer-alert-overlay{
+  position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(rgba(7,70,49,.92),rgba(9,59,45,.92)); opacity:0; visibility:hidden; transition:opacity .25s ease, visibility .25s ease;
+}
+.prayer-alert-overlay.show{opacity:1; visibility:visible;}
+.prayer-alert-inner{
+  width:min(92vw,1400px);
+  padding:42px 48px 48px;
+  text-align:center;
+  border:2px solid rgba(242,210,158,.55);
+  border-radius:28px;
+  background:linear-gradient(rgba(10,78,59,.58),rgba(7,66,50,.58));
+  box-shadow:0 24px 60px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.07);
+  backdrop-filter: blur(6px);
+}
+.prayer-alert-kicker{font-size:clamp(22px,2.1vw,34px);font-weight:800;color:var(--beige);letter-spacing:2px;text-shadow:0 3px 8px rgba(0,0,0,.26);}
+.prayer-alert-label{margin-top:10px;font-size:clamp(24px,2.6vw,40px);font-weight:700;color:#fff;text-shadow:0 3px 8px rgba(0,0,0,.26);}
+.prayer-alert-text{margin-top:10px;font-size:clamp(50px,5.5vw,88px);font-weight:800;color:#fff;text-shadow:0 4px 10px rgba(0,0,0,.28);}
+.prayer-alert-timer{margin-top:18px;font-size:clamp(92px,11vw,170px);font-weight:800;line-height:1;color:var(--beige);font-variant-numeric:tabular-nums;text-shadow:0 5px 12px rgba(0,0,0,.30);}
+.prayer-alert-note{margin-top:12px;font-size:clamp(20px,2vw,30px);font-weight:600;color:#f7efe2;opacity:.95;text-shadow:0 3px 8px rgba(0,0,0,.26);}
+
+@media (max-width: 900px){
+  #clock{font-size:clamp(32px,10vw,60px); top:13.6%;}
+  #gregDay,#hijriDay{font-size:clamp(28px,8vw,52px);}
+  #gregMonth,#hijriMonth{font-size:clamp(16px,4.5vw,28px);}
+  #gregYear,#hijriYear{font-size:clamp(14px,3.5vw,22px);}
+  .greg-day-name,.hijri-day-name{font-size:clamp(11px,2.8vw,16px);}
+  .prayer-time{font-size:clamp(20px,5.4vw,36px);}
+  #nextPrayerName{top:76.2%; left:10%; right:10%; font-size:clamp(12px,3.3vw,19px);}
+  #countdown{top:81.2%; font-size:clamp(34px,9.5vw,60px);}
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <img class="bg" src="file_00000000938082109316638a3c95a606.png" alt="Vaktija bakgrund" />
+  <div class="overlay">
+    <div id="clock" class="dynamic shadow-strong">--:--:--</div>
+
+    <div id="gregDayName" class="dynamic greg-day-name shadow-light">---</div>
+    <div id="gregDay" class="dynamic shadow-dark">--.</div>
+    <div id="gregMonth" class="dynamic shadow-dark">---</div>
+    <div id="gregYear" class="dynamic shadow-dark">----</div>
+
+    <div id="hijriDayName" class="dynamic hijri-day-name shadow-light">---</div>
+    <div id="hijriDay" class="dynamic shadow-dark">--.</div>
+    <div id="hijriMonth" class="dynamic shadow-dark">---</div>
+    <div id="hijriYear" class="dynamic shadow-dark">----</div>
+
+    <div id="t0" class="dynamic prayer-time shadow-dark">--:--</div>
+    <div id="t1" class="dynamic prayer-time shadow-dark">--:--</div>
+    <div id="t2" class="dynamic prayer-time shadow-dark">--:--</div>
+    <div id="t3" class="dynamic prayer-time shadow-dark">--:--</div>
+    <div id="t4" class="dynamic prayer-time shadow-dark">--:--</div>
+    <div id="t5" class="dynamic prayer-time shadow-dark">--:--</div>
+
+    <div id="nextPrayerName" class="dynamic shadow-light">VRIJEME DO NAMAZA</div>
+    <div id="countdown" class="dynamic shadow-strong">--:--:--</div>
+    <div id="statusMsg" class="dynamic"></div>
+  </div>
+</div>
+
+<div class="prayer-alert-overlay" id="prayerAlertOverlay">
+  <div class="prayer-alert-inner">
+    <div class="prayer-alert-kicker">DŽEMAT VÄRNAMO</div>
+    <div class="prayer-alert-label">VRIJEME DO:</div>
+    <div class="prayer-alert-text" id="prayerAlertText">SABAH NAMAZA</div>
+    <div class="prayer-alert-timer" id="prayerAlertTimer">05:00</div>
+    <div class="prayer-alert-note">Pripremimo se za namaz</div>
+  </div>
+</div>
+
+<script>
+const prayerNamesAr = {
+  "Zora":"إمساك",
+  "Izlaz sunca":"الشروق",
+  "Podne":"الظهر",
+  "Ikindija":"العصر",
+  "Akšam":"المغرب",
+  "Jacija":"العشاء"
+};
+
+const monthMap = ["januar","februar","mart","april","maj","juni","juli","august","septembar","oktobar","novembar","decembar"];
+const weekdayMap = ["NED","PON","UTO","SRI","ČET","PET","SUB"];
+
+const schedule = {
+  "2026-01-01": { hijriDay:"12.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:13"], ["Ikindija","13:20"], ["Akšam","15:37"], ["Jacija","17:17"]] },
+  "2026-01-02": { hijriDay:"13.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:58"], ["Izlaz sunca","08:41"], ["Podne","12:13"], ["Ikindija","13:21"], ["Akšam","15:38"], ["Jacija","17:18"]] },
+  "2026-01-03": { hijriDay:"14.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:57"], ["Izlaz sunca","08:41"], ["Podne","12:13"], ["Ikindija","13:22"], ["Akšam","15:40"], ["Jacija","17:20"]] },
+  "2026-01-04": { hijriDay:"15.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:57"], ["Izlaz sunca","08:40"], ["Podne","12:14"], ["Ikindija","13:23"], ["Akšam","15:41"], ["Jacija","17:21"]] },
+  "2026-01-05": { hijriDay:"16.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:57"], ["Izlaz sunca","08:40"], ["Podne","12:14"], ["Ikindija","13:24"], ["Akšam","15:42"], ["Jacija","17:22"]] },
+  "2026-01-06": { hijriDay:"17.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:56"], ["Izlaz sunca","08:39"], ["Podne","12:15"], ["Ikindija","13:26"], ["Akšam","15:44"], ["Jacija","17:24"]] },
+  "2026-01-07": { hijriDay:"18.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:55"], ["Izlaz sunca","08:38"], ["Podne","12:15"], ["Ikindija","13:27"], ["Akšam","15:46"], ["Jacija","17:26"]] },
+  "2026-01-08": { hijriDay:"19.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:55"], ["Izlaz sunca","08:38"], ["Podne","12:16"], ["Ikindija","13:28"], ["Akšam","15:47"], ["Jacija","17:27"]] },
+  "2026-01-09": { hijriDay:"20.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:54"], ["Izlaz sunca","08:37"], ["Podne","12:16"], ["Ikindija","13:30"], ["Akšam","15:49"], ["Jacija","17:29"]] },
+  "2026-01-10": { hijriDay:"21.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:53"], ["Izlaz sunca","08:36"], ["Podne","12:16"], ["Ikindija","13:31"], ["Akšam","15:51"], ["Jacija","17:31"]] },
+  "2026-01-11": { hijriDay:"22.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:52"], ["Izlaz sunca","08:35"], ["Podne","12:17"], ["Ikindija","13:32"], ["Akšam","15:52"], ["Jacija","17:32"]] },
+  "2026-01-12": { hijriDay:"23.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:51"], ["Izlaz sunca","08:34"], ["Podne","12:17"], ["Ikindija","13:34"], ["Akšam","15:54"], ["Jacija","17:34"]] },
+  "2026-01-13": { hijriDay:"24.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:50"], ["Izlaz sunca","08:33"], ["Podne","12:18"], ["Ikindija","13:35"], ["Akšam","15:56"], ["Jacija","17:36"]] },
+  "2026-01-14": { hijriDay:"25.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:49"], ["Izlaz sunca","08:32"], ["Podne","12:18"], ["Ikindija","13:37"], ["Akšam","15:58"], ["Jacija","17:38"]] },
+  "2026-01-15": { hijriDay:"26.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:48"], ["Izlaz sunca","08:30"], ["Podne","12:18"], ["Ikindija","13:38"], ["Akšam","16:00"], ["Jacija","17:40"]] },
+  "2026-01-16": { hijriDay:"27.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:47"], ["Izlaz sunca","08:29"], ["Podne","12:19"], ["Ikindija","13:40"], ["Akšam","16:02"], ["Jacija","17:42"]] },
+  "2026-01-17": { hijriDay:"28.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:46"], ["Izlaz sunca","08:28"], ["Podne","12:19"], ["Ikindija","13:41"], ["Akšam","16:04"], ["Jacija","17:44"]] },
+  "2026-01-18": { hijriDay:"29.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:45"], ["Izlaz sunca","08:27"], ["Podne","12:19"], ["Ikindija","13:43"], ["Akšam","16:06"], ["Jacija","17:46"]] },
+  "2026-01-19": { hijriDay:"30.", hijriMonth:"redžeb", hijriYear:"1447", prayers:[["Zora","06:43"], ["Izlaz sunca","08:25"], ["Podne","12:20"], ["Ikindija","13:44"], ["Akšam","16:08"], ["Jacija","17:48"]] },
+  "2026-01-20": { hijriDay:"01.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:42"], ["Izlaz sunca","08:24"], ["Podne","12:20"], ["Ikindija","13:46"], ["Akšam","16:10"], ["Jacija","17:50"]] },
+  "2026-01-21": { hijriDay:"02.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:41"], ["Izlaz sunca","08:22"], ["Podne","12:20"], ["Ikindija","13:47"], ["Akšam","16:12"], ["Jacija","17:52"]] },
+  "2026-01-22": { hijriDay:"03.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:39"], ["Izlaz sunca","08:21"], ["Podne","12:20"], ["Ikindija","13:49"], ["Akšam","16:14"], ["Jacija","17:54"]] },
+  "2026-01-23": { hijriDay:"04.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:38"], ["Izlaz sunca","08:19"], ["Podne","12:21"], ["Ikindija","13:51"], ["Akšam","16:17"], ["Jacija","17:57"]] },
+  "2026-01-24": { hijriDay:"05.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:36"], ["Izlaz sunca","08:17"], ["Podne","12:21"], ["Ikindija","13:52"], ["Akšam","16:19"], ["Jacija","17:59"]] },
+  "2026-01-25": { hijriDay:"06.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:34"], ["Izlaz sunca","08:15"], ["Podne","12:21"], ["Ikindija","13:54"], ["Akšam","16:21"], ["Jacija","18:01"]] },
+  "2026-01-26": { hijriDay:"07.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:33"], ["Izlaz sunca","08:14"], ["Podne","12:21"], ["Ikindija","13:56"], ["Akšam","16:23"], ["Jacija","18:03"]] },
+  "2026-01-27": { hijriDay:"08.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:31"], ["Izlaz sunca","08:12"], ["Podne","12:22"], ["Ikindija","13:58"], ["Akšam","16:25"], ["Jacija","18:05"]] },
+  "2026-01-28": { hijriDay:"09.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:29"], ["Izlaz sunca","08:10"], ["Podne","12:22"], ["Ikindija","13:59"], ["Akšam","16:28"], ["Jacija","18:08"]] },
+  "2026-01-29": { hijriDay:"10.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:28"], ["Izlaz sunca","08:08"], ["Podne","12:22"], ["Ikindija","14:01"], ["Akšam","16:30"], ["Jacija","18:10"]] },
+  "2026-01-30": { hijriDay:"11.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:26"], ["Izlaz sunca","08:06"], ["Podne","12:22"], ["Ikindija","14:03"], ["Akšam","16:32"], ["Jacija","18:12"]] },
+  "2026-01-31": { hijriDay:"12.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:24"], ["Izlaz sunca","08:04"], ["Podne","12:22"], ["Ikindija","14:04"], ["Akšam","16:34"], ["Jacija","18:14"]] },
+  "2026-02-01": { hijriDay:"13.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:22"], ["Izlaz sunca","08:02"], ["Podne","12:22"], ["Ikindija","14:06"], ["Akšam","16:37"], ["Jacija","18:17"]] },
+  "2026-02-02": { hijriDay:"14.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:20"], ["Izlaz sunca","08:00"], ["Podne","12:23"], ["Ikindija","14:08"], ["Akšam","16:39"], ["Jacija","18:19"]] },
+  "2026-02-03": { hijriDay:"15.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:18"], ["Izlaz sunca","07:58"], ["Podne","12:23"], ["Ikindija","14:10"], ["Akšam","16:41"], ["Jacija","18:21"]] },
+  "2026-02-04": { hijriDay:"16.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:16"], ["Izlaz sunca","07:56"], ["Podne","12:23"], ["Ikindija","14:11"], ["Akšam","16:44"], ["Jacija","18:24"]] },
+  "2026-02-05": { hijriDay:"17.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:14"], ["Izlaz sunca","07:54"], ["Podne","12:23"], ["Ikindija","14:13"], ["Akšam","16:46"], ["Jacija","18:26"]] },
+  "2026-02-06": { hijriDay:"18.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:12"], ["Izlaz sunca","07:52"], ["Podne","12:23"], ["Ikindija","14:15"], ["Akšam","16:48"], ["Jacija","18:28"]] },
+  "2026-02-07": { hijriDay:"19.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:10"], ["Izlaz sunca","07:50"], ["Podne","12:23"], ["Ikindija","14:17"], ["Akšam","16:50"], ["Jacija","18:30"]] },
+  "2026-02-08": { hijriDay:"20.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:08"], ["Izlaz sunca","07:47"], ["Podne","12:23"], ["Ikindija","14:19"], ["Akšam","16:53"], ["Jacija","18:33"]] },
+  "2026-02-09": { hijriDay:"21.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:06"], ["Izlaz sunca","07:45"], ["Podne","12:23"], ["Ikindija","14:20"], ["Akšam","16:55"], ["Jacija","18:35"]] },
+  "2026-02-10": { hijriDay:"22.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:03"], ["Izlaz sunca","07:43"], ["Podne","12:23"], ["Ikindija","14:22"], ["Akšam","16:57"], ["Jacija","18:37"]] },
+  "2026-02-11": { hijriDay:"23.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","06:01"], ["Izlaz sunca","07:41"], ["Podne","12:23"], ["Ikindija","14:24"], ["Akšam","17:00"], ["Jacija","18:40"]] },
+  "2026-02-12": { hijriDay:"24.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:59"], ["Izlaz sunca","07:38"], ["Podne","12:23"], ["Ikindija","14:26"], ["Akšam","17:02"], ["Jacija","18:42"]] },
+  "2026-02-13": { hijriDay:"25.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:57"], ["Izlaz sunca","07:36"], ["Podne","12:23"], ["Ikindija","14:27"], ["Akšam","17:04"], ["Jacija","18:44"]] },
+  "2026-02-14": { hijriDay:"26.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:55"], ["Izlaz sunca","07:34"], ["Podne","12:23"], ["Ikindija","14:29"], ["Akšam","17:07"], ["Jacija","18:47"]] },
+  "2026-02-15": { hijriDay:"27.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:52"], ["Izlaz sunca","07:31"], ["Podne","12:23"], ["Ikindija","14:31"], ["Akšam","17:09"], ["Jacija","18:49"]] },
+  "2026-02-16": { hijriDay:"28.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:50"], ["Izlaz sunca","07:29"], ["Podne","12:23"], ["Ikindija","14:32"], ["Akšam","17:11"], ["Jacija","18:51"]] },
+  "2026-02-17": { hijriDay:"29.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:48"], ["Izlaz sunca","07:26"], ["Podne","12:23"], ["Ikindija","14:34"], ["Akšam","17:13"], ["Jacija","18:53"]] },
+  "2026-02-18": { hijriDay:"30.", hijriMonth:"ša'ban", hijriYear:"1447", prayers:[["Zora","05:45"], ["Izlaz sunca","07:24"], ["Podne","12:23"], ["Ikindija","14:36"], ["Akšam","17:16"], ["Jacija","18:56"]] },
+  "2026-02-19": { hijriDay:"01.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:43"], ["Izlaz sunca","07:21"], ["Podne","12:23"], ["Ikindija","14:38"], ["Akšam","17:18"], ["Jacija","18:58"]] },
+  "2026-02-20": { hijriDay:"02.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:41"], ["Izlaz sunca","07:19"], ["Podne","12:23"], ["Ikindija","14:39"], ["Akšam","17:20"], ["Jacija","19:00"]] },
+  "2026-02-21": { hijriDay:"03.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:38"], ["Izlaz sunca","07:16"], ["Podne","12:22"], ["Ikindija","14:41"], ["Akšam","17:23"], ["Jacija","19:03"]] },
+  "2026-02-22": { hijriDay:"04.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:36"], ["Izlaz sunca","07:14"], ["Podne","12:22"], ["Ikindija","14:43"], ["Akšam","17:25"], ["Jacija","19:05"]] },
+  "2026-02-23": { hijriDay:"05.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:33"], ["Izlaz sunca","07:11"], ["Podne","12:22"], ["Ikindija","14:44"], ["Akšam","17:27"], ["Jacija","19:07"]] },
+  "2026-02-24": { hijriDay:"06.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:31"], ["Izlaz sunca","07:09"], ["Podne","12:22"], ["Ikindija","14:46"], ["Akšam","17:29"], ["Jacija","19:09"]] },
+  "2026-02-25": { hijriDay:"07.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:28"], ["Izlaz sunca","07:06"], ["Podne","12:22"], ["Ikindija","14:48"], ["Akšam","17:32"], ["Jacija","19:12"]] },
+  "2026-02-26": { hijriDay:"08.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:26"], ["Izlaz sunca","07:04"], ["Podne","12:22"], ["Ikindija","14:49"], ["Akšam","17:34"], ["Jacija","19:14"]] },
+  "2026-02-27": { hijriDay:"09.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:23"], ["Izlaz sunca","07:01"], ["Podne","12:22"], ["Ikindija","14:51"], ["Akšam","17:36"], ["Jacija","19:16"]] },
+  "2026-02-28": { hijriDay:"10.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:21"], ["Izlaz sunca","06:58"], ["Podne","12:21"], ["Ikindija","14:52"], ["Akšam","17:38"], ["Jacija","19:18"]] },
+  "2026-03-01": { hijriDay:"11.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:18"], ["Izlaz sunca","06:56"], ["Podne","12:21"], ["Ikindija","14:54"], ["Akšam","17:41"], ["Jacija","19:21"]] },
+  "2026-03-02": { hijriDay:"12.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:16"], ["Izlaz sunca","06:53"], ["Podne","12:21"], ["Ikindija","14:56"], ["Akšam","17:43"], ["Jacija","19:23"]] },
+  "2026-03-03": { hijriDay:"13.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:13"], ["Izlaz sunca","06:51"], ["Podne","12:21"], ["Ikindija","14:57"], ["Akšam","17:45"], ["Jacija","19:25"]] },
+  "2026-03-04": { hijriDay:"14.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:11"], ["Izlaz sunca","06:48"], ["Podne","12:21"], ["Ikindija","14:59"], ["Akšam","17:47"], ["Jacija","19:27"]] },
+  "2026-03-05": { hijriDay:"15.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:08"], ["Izlaz sunca","06:45"], ["Podne","12:20"], ["Ikindija","15:00"], ["Akšam","17:50"], ["Jacija","19:30"]] },
+  "2026-03-06": { hijriDay:"16.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:06"], ["Izlaz sunca","06:43"], ["Podne","12:20"], ["Ikindija","15:02"], ["Akšam","17:52"], ["Jacija","19:32"]] },
+  "2026-03-07": { hijriDay:"17.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:03"], ["Izlaz sunca","06:40"], ["Podne","12:20"], ["Ikindija","15:03"], ["Akšam","17:54"], ["Jacija","19:34"]] },
+  "2026-03-08": { hijriDay:"18.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","05:01"], ["Izlaz sunca","06:37"], ["Podne","12:20"], ["Ikindija","15:05"], ["Akšam","17:56"], ["Jacija","19:36"]] },
+  "2026-03-09": { hijriDay:"19.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:58"], ["Izlaz sunca","06:35"], ["Podne","12:19"], ["Ikindija","15:06"], ["Akšam","17:58"], ["Jacija","19:38"]] },
+  "2026-03-10": { hijriDay:"20.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:55"], ["Izlaz sunca","06:32"], ["Podne","12:19"], ["Ikindija","15:08"], ["Akšam","18:01"], ["Jacija","19:41"]] },
+  "2026-03-11": { hijriDay:"21.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:53"], ["Izlaz sunca","06:29"], ["Podne","12:19"], ["Ikindija","15:09"], ["Akšam","18:03"], ["Jacija","19:43"]] },
+  "2026-03-12": { hijriDay:"22.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:50"], ["Izlaz sunca","06:26"], ["Podne","12:19"], ["Ikindija","15:11"], ["Akšam","18:05"], ["Jacija","19:45"]] },
+  "2026-03-13": { hijriDay:"23.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:48"], ["Izlaz sunca","06:24"], ["Podne","12:18"], ["Ikindija","15:12"], ["Akšam","18:07"], ["Jacija","19:47"]] },
+  "2026-03-14": { hijriDay:"24.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:45"], ["Izlaz sunca","06:21"], ["Podne","12:18"], ["Ikindija","15:14"], ["Akšam","18:09"], ["Jacija","19:49"]] },
+  "2026-03-15": { hijriDay:"25.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:42"], ["Izlaz sunca","06:18"], ["Podne","12:18"], ["Ikindija","15:15"], ["Akšam","18:11"], ["Jacija","19:51"]] },
+  "2026-03-16": { hijriDay:"26.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:40"], ["Izlaz sunca","06:15"], ["Podne","12:17"], ["Ikindija","15:17"], ["Akšam","18:14"], ["Jacija","19:54"]] },
+  "2026-03-17": { hijriDay:"27.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:37"], ["Izlaz sunca","06:13"], ["Podne","12:17"], ["Ikindija","15:18"], ["Akšam","18:16"], ["Jacija","19:56"]] },
+  "2026-03-18": { hijriDay:"28.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:34"], ["Izlaz sunca","06:10"], ["Podne","12:17"], ["Ikindija","15:19"], ["Akšam","18:18"], ["Jacija","19:58"]] },
+  "2026-03-19": { hijriDay:"29.", hijriMonth:"ramazan", hijriYear:"1447", prayers:[["Zora","04:32"], ["Izlaz sunca","06:07"], ["Podne","12:17"], ["Ikindija","15:21"], ["Akšam","18:20"], ["Jacija","20:00"]] },
+  "2026-03-20": { hijriDay:"01.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:29"], ["Izlaz sunca","06:05"], ["Podne","12:16"], ["Ikindija","15:22"], ["Akšam","18:22"], ["Jacija","20:02"]] },
+  "2026-03-21": { hijriDay:"02.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:26"], ["Izlaz sunca","06:02"], ["Podne","12:16"], ["Ikindija","15:23"], ["Akšam","18:24"], ["Jacija","20:04"]] },
+  "2026-03-22": { hijriDay:"03.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:24"], ["Izlaz sunca","05:59"], ["Podne","12:16"], ["Ikindija","15:25"], ["Akšam","18:27"], ["Jacija","20:07"]] },
+  "2026-03-23": { hijriDay:"04.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:21"], ["Izlaz sunca","05:56"], ["Podne","12:15"], ["Ikindija","15:26"], ["Akšam","18:29"], ["Jacija","20:09"]] },
+  "2026-03-24": { hijriDay:"05.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:18"], ["Izlaz sunca","05:54"], ["Podne","12:15"], ["Ikindija","15:27"], ["Akšam","18:31"], ["Jacija","20:11"]] },
+  "2026-03-25": { hijriDay:"06.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:15"], ["Izlaz sunca","05:51"], ["Podne","12:15"], ["Ikindija","15:29"], ["Akšam","18:33"], ["Jacija","20:13"]] },
+  "2026-03-26": { hijriDay:"07.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:12"], ["Izlaz sunca","05:48"], ["Podne","12:14"], ["Ikindija","15:30"], ["Akšam","18:35"], ["Jacija","20:15"]] },
+  "2026-03-27": { hijriDay:"08.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:09"], ["Izlaz sunca","05:45"], ["Podne","12:14"], ["Ikindija","15:31"], ["Akšam","18:37"], ["Jacija","20:17"]] },
+  "2026-03-28": { hijriDay:"09.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:05"], ["Izlaz sunca","05:42"], ["Podne","12:14"], ["Ikindija","15:32"], ["Akšam","18:39"], ["Jacija","20:19"]] },
+  "2026-03-29": { hijriDay:"10.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","05:02"], ["Izlaz sunca","06:40"], ["Podne","13:14"], ["Ikindija","16:34"], ["Akšam","19:42"], ["Jacija","21:22"]] },
+  "2026-03-30": { hijriDay:"11.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:59"], ["Izlaz sunca","06:37"], ["Podne","13:13"], ["Ikindija","16:35"], ["Akšam","19:44"], ["Jacija","21:24"]] },
+  "2026-03-31": { hijriDay:"12.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:56"], ["Izlaz sunca","06:34"], ["Podne","13:13"], ["Ikindija","16:36"], ["Akšam","19:46"], ["Jacija","21:26"]] },
+  "2026-04-01": { hijriDay:"13.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:53"], ["Izlaz sunca","06:32"], ["Podne","13:13"], ["Ikindija","16:37"], ["Akšam","19:48"], ["Jacija","21:28"]] },
+  "2026-04-02": { hijriDay:"14.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:50"], ["Izlaz sunca","06:29"], ["Podne","13:12"], ["Ikindija","16:39"], ["Akšam","19:50"], ["Jacija","21:30"]] },
+  "2026-04-03": { hijriDay:"15.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:47"], ["Izlaz sunca","06:26"], ["Podne","13:12"], ["Ikindija","16:40"], ["Akšam","19:52"], ["Jacija","21:32"]] },
+  "2026-04-04": { hijriDay:"16.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:44"], ["Izlaz sunca","06:23"], ["Podne","13:12"], ["Ikindija","16:41"], ["Akšam","19:54"], ["Jacija","21:34"]] },
+  "2026-04-05": { hijriDay:"17.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:41"], ["Izlaz sunca","06:21"], ["Podne","13:11"], ["Ikindija","16:42"], ["Akšam","19:57"], ["Jacija","21:37"]] },
+  "2026-04-06": { hijriDay:"18.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:38"], ["Izlaz sunca","06:18"], ["Podne","13:11"], ["Ikindija","16:43"], ["Akšam","19:59"], ["Jacija","21:39"]] },
+  "2026-04-07": { hijriDay:"19.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:35"], ["Izlaz sunca","06:15"], ["Podne","13:11"], ["Ikindija","16:44"], ["Akšam","20:01"], ["Jacija","21:41"]] },
+  "2026-04-08": { hijriDay:"20.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:32"], ["Izlaz sunca","06:12"], ["Podne","13:11"], ["Ikindija","16:46"], ["Akšam","20:03"], ["Jacija","21:43"]] },
+  "2026-04-09": { hijriDay:"21.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:29"], ["Izlaz sunca","06:10"], ["Podne","13:10"], ["Ikindija","16:47"], ["Akšam","20:05"], ["Jacija","21:45"]] },
+  "2026-04-10": { hijriDay:"22.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:26"], ["Izlaz sunca","06:07"], ["Podne","13:10"], ["Ikindija","16:48"], ["Akšam","20:07"], ["Jacija","21:47"]] },
+  "2026-04-11": { hijriDay:"23.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:23"], ["Izlaz sunca","06:04"], ["Podne","13:10"], ["Ikindija","16:49"], ["Akšam","20:10"], ["Jacija","21:50"]] },
+  "2026-04-12": { hijriDay:"24.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:20"], ["Izlaz sunca","06:02"], ["Podne","13:10"], ["Ikindija","16:50"], ["Akšam","20:12"], ["Jacija","21:52"]] },
+  "2026-04-13": { hijriDay:"25.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:17"], ["Izlaz sunca","05:59"], ["Podne","13:09"], ["Ikindija","16:51"], ["Akšam","20:14"], ["Jacija","21:54"]] },
+  "2026-04-14": { hijriDay:"26.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:14"], ["Izlaz sunca","05:56"], ["Podne","13:09"], ["Ikindija","16:52"], ["Akšam","20:16"], ["Jacija","21:56"]] },
+  "2026-04-15": { hijriDay:"27.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:11"], ["Izlaz sunca","05:54"], ["Podne","13:09"], ["Ikindija","16:53"], ["Akšam","20:18"], ["Jacija","21:58"]] },
+  "2026-04-16": { hijriDay:"28.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:08"], ["Izlaz sunca","05:51"], ["Podne","13:09"], ["Ikindija","16:54"], ["Akšam","20:20"], ["Jacija","22:00"]] },
+  "2026-04-17": { hijriDay:"29.", hijriMonth:"ševval", hijriYear:"1447", prayers:[["Zora","04:05"], ["Izlaz sunca","05:48"], ["Podne","13:08"], ["Ikindija","16:55"], ["Akšam","20:22"], ["Jacija","22:02"]] },
+  "2026-04-18": { hijriDay:"01.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","04:03"], ["Izlaz sunca","05:46"], ["Podne","13:08"], ["Ikindija","16:56"], ["Akšam","20:25"], ["Jacija","22:05"]] },
+  "2026-04-19": { hijriDay:"02.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","04:00"], ["Izlaz sunca","05:43"], ["Podne","13:08"], ["Ikindija","16:57"], ["Akšam","20:27"], ["Jacija","22:07"]] },
+  "2026-04-20": { hijriDay:"03.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:57"], ["Izlaz sunca","05:41"], ["Podne","13:08"], ["Ikindija","16:58"], ["Akšam","20:29"], ["Jacija","22:09"]] },
+  "2026-04-21": { hijriDay:"04.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:54"], ["Izlaz sunca","05:38"], ["Podne","13:08"], ["Ikindija","16:59"], ["Akšam","20:31"], ["Jacija","22:11"]] },
+  "2026-04-22": { hijriDay:"05.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:51"], ["Izlaz sunca","05:36"], ["Podne","13:07"], ["Ikindija","17:00"], ["Akšam","20:33"], ["Jacija","22:13"]] },
+  "2026-04-23": { hijriDay:"06.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:48"], ["Izlaz sunca","05:33"], ["Podne","13:07"], ["Ikindija","17:01"], ["Akšam","20:35"], ["Jacija","22:15"]] },
+  "2026-04-24": { hijriDay:"07.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:45"], ["Izlaz sunca","05:30"], ["Podne","13:07"], ["Ikindija","17:02"], ["Akšam","20:38"], ["Jacija","22:18"]] },
+  "2026-04-25": { hijriDay:"08.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:43"], ["Izlaz sunca","05:28"], ["Podne","13:07"], ["Ikindija","17:03"], ["Akšam","20:40"], ["Jacija","22:20"]] },
+  "2026-04-26": { hijriDay:"09.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:40"], ["Izlaz sunca","05:25"], ["Podne","13:07"], ["Ikindija","17:04"], ["Akšam","20:42"], ["Jacija","22:22"]] },
+  "2026-04-27": { hijriDay:"10.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:37"], ["Izlaz sunca","05:23"], ["Podne","13:06"], ["Ikindija","17:05"], ["Akšam","20:44"], ["Jacija","22:24"]] },
+  "2026-04-28": { hijriDay:"11.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:34"], ["Izlaz sunca","05:21"], ["Podne","13:06"], ["Ikindija","17:06"], ["Akšam","20:46"], ["Jacija","22:26"]] },
+  "2026-04-29": { hijriDay:"12.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:31"], ["Izlaz sunca","05:18"], ["Podne","13:06"], ["Ikindija","17:07"], ["Akšam","20:48"], ["Jacija","22:28"]] },
+  "2026-04-30": { hijriDay:"13.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:29"], ["Izlaz sunca","05:16"], ["Podne","13:06"], ["Ikindija","17:08"], ["Akšam","20:51"], ["Jacija","22:31"]] },
+  "2026-05-01": { hijriDay:"14.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:26"], ["Izlaz sunca","05:13"], ["Podne","13:06"], ["Ikindija","17:09"], ["Akšam","20:53"], ["Jacija","22:33"]] },
+  "2026-05-02": { hijriDay:"15.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:23"], ["Izlaz sunca","05:11"], ["Podne","13:06"], ["Ikindija","17:10"], ["Akšam","20:55"], ["Jacija","22:35"]] },
+  "2026-05-03": { hijriDay:"16.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:21"], ["Izlaz sunca","05:09"], ["Podne","13:06"], ["Ikindija","17:11"], ["Akšam","20:57"], ["Jacija","22:37"]] },
+  "2026-05-04": { hijriDay:"17.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:18"], ["Izlaz sunca","05:06"], ["Podne","13:06"], ["Ikindija","17:12"], ["Akšam","20:59"], ["Jacija","22:39"]] },
+  "2026-05-05": { hijriDay:"18.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:16"], ["Izlaz sunca","05:04"], ["Podne","13:06"], ["Ikindija","17:13"], ["Akšam","21:01"], ["Jacija","22:41"]] },
+  "2026-05-06": { hijriDay:"19.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:13"], ["Izlaz sunca","05:02"], ["Podne","13:05"], ["Ikindija","17:14"], ["Akšam","21:03"], ["Jacija","22:43"]] },
+  "2026-05-07": { hijriDay:"20.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:10"], ["Izlaz sunca","04:59"], ["Podne","13:05"], ["Ikindija","17:14"], ["Akšam","21:05"], ["Jacija","22:45"]] },
+  "2026-05-08": { hijriDay:"21.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:08"], ["Izlaz sunca","04:57"], ["Podne","13:05"], ["Ikindija","17:15"], ["Akšam","21:08"], ["Jacija","22:48"]] },
+  "2026-05-09": { hijriDay:"22.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:05"], ["Izlaz sunca","04:55"], ["Podne","13:05"], ["Ikindija","17:16"], ["Akšam","21:10"], ["Jacija","22:50"]] },
+  "2026-05-10": { hijriDay:"23.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:03"], ["Izlaz sunca","04:53"], ["Podne","13:05"], ["Ikindija","17:17"], ["Akšam","21:12"], ["Jacija","22:52"]] },
+  "2026-05-11": { hijriDay:"24.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","03:00"], ["Izlaz sunca","04:51"], ["Podne","13:05"], ["Ikindija","17:18"], ["Akšam","21:14"], ["Jacija","22:54"]] },
+  "2026-05-12": { hijriDay:"25.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:58"], ["Izlaz sunca","04:49"], ["Podne","13:05"], ["Ikindija","17:19"], ["Akšam","21:16"], ["Jacija","22:56"]] },
+  "2026-05-13": { hijriDay:"26.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:55"], ["Izlaz sunca","04:47"], ["Podne","13:05"], ["Ikindija","17:19"], ["Akšam","21:18"], ["Jacija","22:58"]] },
+  "2026-05-14": { hijriDay:"27.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:53"], ["Izlaz sunca","04:45"], ["Podne","13:05"], ["Ikindija","17:20"], ["Akšam","21:20"], ["Jacija","23:00"]] },
+  "2026-05-15": { hijriDay:"28.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:52"], ["Izlaz sunca","04:43"], ["Podne","13:05"], ["Ikindija","17:21"], ["Akšam","21:22"], ["Jacija","23:02"]] },
+  "2026-05-16": { hijriDay:"29.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:51"], ["Izlaz sunca","04:41"], ["Podne","13:05"], ["Ikindija","17:22"], ["Akšam","21:24"], ["Jacija","23:04"]] },
+  "2026-05-17": { hijriDay:"30.", hijriMonth:"zu-l-ka'de", hijriYear:"1447", prayers:[["Zora","02:50"], ["Izlaz sunca","04:39"], ["Podne","13:05"], ["Ikindija","17:23"], ["Akšam","21:26"], ["Jacija","23:06"]] },
+  "2026-05-18": { hijriDay:"01.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:49"], ["Izlaz sunca","04:37"], ["Podne","13:05"], ["Ikindija","17:23"], ["Akšam","21:28"], ["Jacija","23:08"]] },
+  "2026-05-19": { hijriDay:"02.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:48"], ["Izlaz sunca","04:35"], ["Podne","13:05"], ["Ikindija","17:24"], ["Akšam","21:30"], ["Jacija","23:10"]] },
+  "2026-05-20": { hijriDay:"03.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:47"], ["Izlaz sunca","04:33"], ["Podne","13:05"], ["Ikindija","17:25"], ["Akšam","21:32"], ["Jacija","23:12"]] },
+  "2026-05-21": { hijriDay:"04.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:46"], ["Izlaz sunca","04:31"], ["Podne","13:05"], ["Ikindija","17:26"], ["Akšam","21:33"], ["Jacija","23:13"]] },
+  "2026-05-22": { hijriDay:"05.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:45"], ["Izlaz sunca","04:30"], ["Podne","13:06"], ["Ikindija","17:26"], ["Akšam","21:35"], ["Jacija","23:15"]] },
+  "2026-05-23": { hijriDay:"06.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:45"], ["Izlaz sunca","04:28"], ["Podne","13:06"], ["Ikindija","17:27"], ["Akšam","21:37"], ["Jacija","23:17"]] },
+  "2026-05-24": { hijriDay:"07.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:44"], ["Izlaz sunca","04:26"], ["Podne","13:06"], ["Ikindija","17:28"], ["Akšam","21:39"], ["Jacija","23:19"]] },
+  "2026-05-25": { hijriDay:"08.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:43"], ["Izlaz sunca","04:25"], ["Podne","13:06"], ["Ikindija","17:28"], ["Akšam","21:41"], ["Jacija","23:21"]] },
+  "2026-05-26": { hijriDay:"09.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:42"], ["Izlaz sunca","04:23"], ["Podne","13:06"], ["Ikindija","17:29"], ["Akšam","21:42"], ["Jacija","23:22"]] },
+  "2026-05-27": { hijriDay:"10.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:42"], ["Izlaz sunca","04:22"], ["Podne","13:06"], ["Ikindija","17:30"], ["Akšam","21:44"], ["Jacija","23:24"]] },
+  "2026-05-28": { hijriDay:"11.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:41"], ["Izlaz sunca","04:21"], ["Podne","13:06"], ["Ikindija","17:30"], ["Akšam","21:46"], ["Jacija","23:26"]] },
+  "2026-05-29": { hijriDay:"12.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:40"], ["Izlaz sunca","04:19"], ["Podne","13:06"], ["Ikindija","17:31"], ["Akšam","21:47"], ["Jacija","23:27"]] },
+  "2026-05-30": { hijriDay:"13.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:40"], ["Izlaz sunca","04:18"], ["Podne","13:06"], ["Ikindija","17:32"], ["Akšam","21:49"], ["Jacija","23:29"]] },
+  "2026-05-31": { hijriDay:"14.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:39"], ["Izlaz sunca","04:17"], ["Podne","13:07"], ["Ikindija","17:32"], ["Akšam","21:50"], ["Jacija","23:30"]] },
+  "2026-06-01": { hijriDay:"15.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:39"], ["Izlaz sunca","04:15"], ["Podne","13:07"], ["Ikindija","17:33"], ["Akšam","21:52"], ["Jacija","23:32"]] },
+  "2026-06-02": { hijriDay:"16.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:38"], ["Izlaz sunca","04:14"], ["Podne","13:07"], ["Ikindija","17:33"], ["Akšam","21:53"], ["Jacija","23:33"]] },
+  "2026-06-03": { hijriDay:"17.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:38"], ["Izlaz sunca","04:13"], ["Podne","13:07"], ["Ikindija","17:34"], ["Akšam","21:54"], ["Jacija","23:34"]] },
+  "2026-06-04": { hijriDay:"18.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:37"], ["Izlaz sunca","04:12"], ["Podne","13:07"], ["Ikindija","17:34"], ["Akšam","21:56"], ["Jacija","23:36"]] },
+  "2026-06-05": { hijriDay:"19.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:37"], ["Izlaz sunca","04:11"], ["Podne","13:07"], ["Ikindija","17:35"], ["Akšam","21:57"], ["Jacija","23:37"]] },
+  "2026-06-06": { hijriDay:"20.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:37"], ["Izlaz sunca","04:10"], ["Podne","13:08"], ["Ikindija","17:35"], ["Akšam","21:58"], ["Jacija","23:38"]] },
+  "2026-06-07": { hijriDay:"21.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:36"], ["Izlaz sunca","04:10"], ["Podne","13:08"], ["Ikindija","17:36"], ["Akšam","21:59"], ["Jacija","23:39"]] },
+  "2026-06-08": { hijriDay:"22.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:36"], ["Izlaz sunca","04:09"], ["Podne","13:08"], ["Ikindija","17:36"], ["Akšam","22:00"], ["Jacija","23:40"]] },
+  "2026-06-09": { hijriDay:"23.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:36"], ["Izlaz sunca","04:08"], ["Podne","13:08"], ["Ikindija","17:37"], ["Akšam","22:01"], ["Jacija","23:41"]] },
+  "2026-06-10": { hijriDay:"24.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:36"], ["Izlaz sunca","04:08"], ["Podne","13:08"], ["Ikindija","17:37"], ["Akšam","22:02"], ["Jacija","23:42"]] },
+  "2026-06-11": { hijriDay:"25.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:35"], ["Izlaz sunca","04:07"], ["Podne","13:09"], ["Ikindija","17:38"], ["Akšam","22:03"], ["Jacija","23:43"]] },
+  "2026-06-12": { hijriDay:"26.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:35"], ["Izlaz sunca","04:07"], ["Podne","13:09"], ["Ikindija","17:38"], ["Akšam","22:04"], ["Jacija","23:44"]] },
+  "2026-06-13": { hijriDay:"27.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:35"], ["Izlaz sunca","04:06"], ["Podne","13:09"], ["Ikindija","17:39"], ["Akšam","22:05"], ["Jacija","23:45"]] },
+  "2026-06-14": { hijriDay:"28.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:35"], ["Izlaz sunca","04:06"], ["Podne","13:09"], ["Ikindija","17:39"], ["Akšam","22:06"], ["Jacija","23:46"]] },
+  "2026-06-15": { hijriDay:"29.", hijriMonth:"zu-l-hidže", hijriYear:"1447", prayers:[["Zora","02:35"], ["Izlaz sunca","04:06"], ["Podne","13:09"], ["Ikindija","17:39"], ["Akšam","22:06"], ["Jacija","23:46"]] },
+  "2026-06-16": { hijriDay:"01.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:35"], ["Izlaz sunca","04:05"], ["Podne","13:10"], ["Ikindija","17:40"], ["Akšam","22:07"], ["Jacija","23:47"]] },
+  "2026-06-17": { hijriDay:"02.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:35"], ["Izlaz sunca","04:05"], ["Podne","13:10"], ["Ikindija","17:40"], ["Akšam","22:07"], ["Jacija","23:47"]] },
+  "2026-06-18": { hijriDay:"03.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:35"], ["Izlaz sunca","04:05"], ["Podne","13:10"], ["Ikindija","17:40"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-19": { hijriDay:"04.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:35"], ["Izlaz sunca","04:05"], ["Podne","13:10"], ["Ikindija","17:40"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-20": { hijriDay:"05.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:36"], ["Izlaz sunca","04:06"], ["Podne","13:10"], ["Ikindija","17:41"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-21": { hijriDay:"06.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:36"], ["Izlaz sunca","04:06"], ["Podne","13:11"], ["Ikindija","17:41"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-22": { hijriDay:"07.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:36"], ["Izlaz sunca","04:06"], ["Podne","13:11"], ["Ikindija","17:41"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-23": { hijriDay:"08.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:36"], ["Izlaz sunca","04:06"], ["Podne","13:11"], ["Ikindija","17:41"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-24": { hijriDay:"09.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:36"], ["Izlaz sunca","04:07"], ["Podne","13:11"], ["Ikindija","17:41"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-25": { hijriDay:"10.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:37"], ["Izlaz sunca","04:07"], ["Podne","13:12"], ["Ikindija","17:42"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-26": { hijriDay:"11.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:37"], ["Izlaz sunca","04:08"], ["Podne","13:12"], ["Ikindija","17:42"], ["Akšam","22:09"], ["Jacija","23:49"]] },
+  "2026-06-27": { hijriDay:"12.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:38"], ["Izlaz sunca","04:08"], ["Podne","13:12"], ["Ikindija","17:42"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-28": { hijriDay:"13.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:38"], ["Izlaz sunca","04:09"], ["Podne","13:12"], ["Ikindija","17:42"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-29": { hijriDay:"14.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:38"], ["Izlaz sunca","04:10"], ["Podne","13:12"], ["Ikindija","17:42"], ["Akšam","22:08"], ["Jacija","23:48"]] },
+  "2026-06-30": { hijriDay:"15.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:39"], ["Izlaz sunca","04:11"], ["Podne","13:13"], ["Ikindija","17:42"], ["Akšam","22:07"], ["Jacija","23:47"]] },
+  "2026-07-01": { hijriDay:"16.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:39"], ["Izlaz sunca","04:11"], ["Podne","13:13"], ["Ikindija","17:42"], ["Akšam","22:07"], ["Jacija","23:47"]] },
+  "2026-07-02": { hijriDay:"17.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:40"], ["Izlaz sunca","04:12"], ["Podne","13:13"], ["Ikindija","17:42"], ["Akšam","22:06"], ["Jacija","23:46"]] },
+  "2026-07-03": { hijriDay:"18.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:41"], ["Izlaz sunca","04:13"], ["Podne","13:13"], ["Ikindija","17:42"], ["Akšam","22:06"], ["Jacija","23:46"]] },
+  "2026-07-04": { hijriDay:"19.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:41"], ["Izlaz sunca","04:14"], ["Podne","13:13"], ["Ikindija","17:42"], ["Akšam","22:05"], ["Jacija","23:45"]] },
+  "2026-07-05": { hijriDay:"20.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:42"], ["Izlaz sunca","04:15"], ["Podne","13:14"], ["Ikindija","17:41"], ["Akšam","22:04"], ["Jacija","23:44"]] },
+  "2026-07-06": { hijriDay:"21.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:43"], ["Izlaz sunca","04:17"], ["Podne","13:14"], ["Ikindija","17:41"], ["Akšam","22:03"], ["Jacija","23:43"]] },
+  "2026-07-07": { hijriDay:"22.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:43"], ["Izlaz sunca","04:18"], ["Podne","13:14"], ["Ikindija","17:41"], ["Akšam","22:02"], ["Jacija","23:42"]] },
+  "2026-07-08": { hijriDay:"23.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:44"], ["Izlaz sunca","04:19"], ["Podne","13:14"], ["Ikindija","17:41"], ["Akšam","22:01"], ["Jacija","23:41"]] },
+  "2026-07-09": { hijriDay:"24.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:45"], ["Izlaz sunca","04:20"], ["Podne","13:14"], ["Ikindija","17:41"], ["Akšam","22:00"], ["Jacija","23:40"]] },
+  "2026-07-10": { hijriDay:"25.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:45"], ["Izlaz sunca","04:22"], ["Podne","13:14"], ["Ikindija","17:40"], ["Akšam","21:59"], ["Jacija","23:39"]] },
+  "2026-07-11": { hijriDay:"26.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:46"], ["Izlaz sunca","04:23"], ["Podne","13:14"], ["Ikindija","17:40"], ["Akšam","21:58"], ["Jacija","23:38"]] },
+  "2026-07-12": { hijriDay:"27.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:47"], ["Izlaz sunca","04:25"], ["Podne","13:15"], ["Ikindija","17:40"], ["Akšam","21:57"], ["Jacija","23:37"]] },
+  "2026-07-13": { hijriDay:"28.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:48"], ["Izlaz sunca","04:26"], ["Podne","13:15"], ["Ikindija","17:39"], ["Akšam","21:55"], ["Jacija","23:35"]] },
+  "2026-07-14": { hijriDay:"29.", hijriMonth:"muharrem", hijriYear:"1448", prayers:[["Zora","02:49"], ["Izlaz sunca","04:28"], ["Podne","13:15"], ["Ikindija","17:39"], ["Akšam","21:54"], ["Jacija","23:34"]] },
+  "2026-07-15": { hijriDay:"01.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:49"], ["Izlaz sunca","04:29"], ["Podne","13:15"], ["Ikindija","17:39"], ["Akšam","21:53"], ["Jacija","23:33"]] },
+  "2026-07-16": { hijriDay:"02.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:50"], ["Izlaz sunca","04:31"], ["Podne","13:15"], ["Ikindija","17:38"], ["Akšam","21:51"], ["Jacija","23:31"]] },
+  "2026-07-17": { hijriDay:"03.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:51"], ["Izlaz sunca","04:33"], ["Podne","13:15"], ["Ikindija","17:38"], ["Akšam","21:50"], ["Jacija","23:30"]] },
+  "2026-07-18": { hijriDay:"04.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:52"], ["Izlaz sunca","04:34"], ["Podne","13:15"], ["Ikindija","17:37"], ["Akšam","21:48"], ["Jacija","23:28"]] },
+  "2026-07-19": { hijriDay:"05.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:53"], ["Izlaz sunca","04:36"], ["Podne","13:15"], ["Ikindija","17:37"], ["Akšam","21:47"], ["Jacija","23:27"]] },
+  "2026-07-20": { hijriDay:"06.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:54"], ["Izlaz sunca","04:38"], ["Podne","13:15"], ["Ikindija","17:36"], ["Akšam","21:45"], ["Jacija","23:25"]] },
+  "2026-07-21": { hijriDay:"07.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:55"], ["Izlaz sunca","04:40"], ["Podne","13:15"], ["Ikindija","17:36"], ["Akšam","21:43"], ["Jacija","23:23"]] },
+  "2026-07-22": { hijriDay:"08.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:56"], ["Izlaz sunca","04:41"], ["Podne","13:15"], ["Ikindija","17:35"], ["Akšam","21:41"], ["Jacija","23:21"]] },
+  "2026-07-23": { hijriDay:"09.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:57"], ["Izlaz sunca","04:43"], ["Podne","13:15"], ["Ikindija","17:34"], ["Akšam","21:40"], ["Jacija","23:20"]] },
+  "2026-07-24": { hijriDay:"10.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:57"], ["Izlaz sunca","04:45"], ["Podne","13:15"], ["Ikindija","17:34"], ["Akšam","21:38"], ["Jacija","23:18"]] },
+  "2026-07-25": { hijriDay:"11.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:58"], ["Izlaz sunca","04:47"], ["Podne","13:15"], ["Ikindija","17:33"], ["Akšam","21:36"], ["Jacija","23:16"]] },
+  "2026-07-26": { hijriDay:"12.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","02:59"], ["Izlaz sunca","04:49"], ["Podne","13:15"], ["Ikindija","17:32"], ["Akšam","21:34"], ["Jacija","23:14"]] },
+  "2026-07-27": { hijriDay:"13.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:00"], ["Izlaz sunca","04:51"], ["Podne","13:15"], ["Ikindija","17:32"], ["Akšam","21:32"], ["Jacija","23:12"]] },
+  "2026-07-28": { hijriDay:"14.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:01"], ["Izlaz sunca","04:53"], ["Podne","13:15"], ["Ikindija","17:31"], ["Akšam","21:30"], ["Jacija","23:10"]] },
+  "2026-07-29": { hijriDay:"15.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:02"], ["Izlaz sunca","04:55"], ["Podne","13:15"], ["Ikindija","17:30"], ["Akšam","21:28"], ["Jacija","23:08"]] },
+  "2026-07-30": { hijriDay:"16.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:05"], ["Izlaz sunca","04:57"], ["Podne","13:15"], ["Ikindija","17:29"], ["Akšam","21:26"], ["Jacija","23:06"]] },
+  "2026-07-31": { hijriDay:"17.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:07"], ["Izlaz sunca","04:59"], ["Podne","13:15"], ["Ikindija","17:28"], ["Akšam","21:24"], ["Jacija","23:04"]] },
+  "2026-08-01": { hijriDay:"18.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:09"], ["Izlaz sunca","05:01"], ["Podne","13:15"], ["Ikindija","17:27"], ["Akšam","21:22"], ["Jacija","23:02"]] },
+  "2026-08-02": { hijriDay:"19.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:12"], ["Izlaz sunca","05:03"], ["Podne","13:15"], ["Ikindija","17:26"], ["Akšam","21:20"], ["Jacija","23:00"]] },
+  "2026-08-03": { hijriDay:"20.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:14"], ["Izlaz sunca","05:05"], ["Podne","13:15"], ["Ikindija","17:25"], ["Akšam","21:17"], ["Jacija","22:57"]] },
+  "2026-08-04": { hijriDay:"21.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:17"], ["Izlaz sunca","05:07"], ["Podne","13:15"], ["Ikindija","17:24"], ["Akšam","21:15"], ["Jacija","22:55"]] },
+  "2026-08-05": { hijriDay:"22.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:19"], ["Izlaz sunca","05:09"], ["Podne","13:15"], ["Ikindija","17:23"], ["Akšam","21:13"], ["Jacija","22:53"]] },
+  "2026-08-06": { hijriDay:"23.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:21"], ["Izlaz sunca","05:11"], ["Podne","13:15"], ["Ikindija","17:22"], ["Akšam","21:11"], ["Jacija","22:51"]] },
+  "2026-08-07": { hijriDay:"24.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:24"], ["Izlaz sunca","05:13"], ["Podne","13:15"], ["Ikindija","17:21"], ["Akšam","21:08"], ["Jacija","22:48"]] },
+  "2026-08-08": { hijriDay:"25.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:26"], ["Izlaz sunca","05:15"], ["Podne","13:14"], ["Ikindija","17:20"], ["Akšam","21:06"], ["Jacija","22:46"]] },
+  "2026-08-09": { hijriDay:"26.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:28"], ["Izlaz sunca","05:17"], ["Podne","13:14"], ["Ikindija","17:19"], ["Akšam","21:04"], ["Jacija","22:44"]] },
+  "2026-08-10": { hijriDay:"27.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:31"], ["Izlaz sunca","05:19"], ["Podne","13:14"], ["Ikindija","17:18"], ["Akšam","21:01"], ["Jacija","22:41"]] },
+  "2026-08-11": { hijriDay:"28.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:33"], ["Izlaz sunca","05:21"], ["Podne","13:14"], ["Ikindija","17:17"], ["Akšam","20:59"], ["Jacija","22:39"]] },
+  "2026-08-12": { hijriDay:"29.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:36"], ["Izlaz sunca","05:23"], ["Podne","13:14"], ["Ikindija","17:16"], ["Akšam","20:57"], ["Jacija","22:37"]] },
+  "2026-08-13": { hijriDay:"30.", hijriMonth:"safer", hijriYear:"1448", prayers:[["Zora","03:38"], ["Izlaz sunca","05:25"], ["Podne","13:14"], ["Ikindija","17:14"], ["Akšam","20:54"], ["Jacija","22:34"]] },
+  "2026-08-14": { hijriDay:"01.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:40"], ["Izlaz sunca","05:27"], ["Podne","13:14"], ["Ikindija","17:13"], ["Akšam","20:52"], ["Jacija","22:32"]] },
+  "2026-08-15": { hijriDay:"02.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:43"], ["Izlaz sunca","05:29"], ["Podne","13:13"], ["Ikindija","17:12"], ["Akšam","20:49"], ["Jacija","22:29"]] },
+  "2026-08-16": { hijriDay:"03.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:45"], ["Izlaz sunca","05:31"], ["Podne","13:13"], ["Ikindija","17:10"], ["Akšam","20:47"], ["Jacija","22:27"]] },
+  "2026-08-17": { hijriDay:"04.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:47"], ["Izlaz sunca","05:33"], ["Podne","13:13"], ["Ikindija","17:09"], ["Akšam","20:44"], ["Jacija","22:24"]] },
+  "2026-08-18": { hijriDay:"05.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:50"], ["Izlaz sunca","05:36"], ["Podne","13:13"], ["Ikindija","17:08"], ["Akšam","20:42"], ["Jacija","22:22"]] },
+  "2026-08-19": { hijriDay:"06.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:52"], ["Izlaz sunca","05:38"], ["Podne","13:12"], ["Ikindija","17:06"], ["Akšam","20:39"], ["Jacija","22:19"]] },
+  "2026-08-20": { hijriDay:"07.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:55"], ["Izlaz sunca","05:40"], ["Podne","13:12"], ["Ikindija","17:05"], ["Akšam","20:36"], ["Jacija","22:16"]] },
+  "2026-08-21": { hijriDay:"08.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:57"], ["Izlaz sunca","05:42"], ["Podne","13:12"], ["Ikindija","17:04"], ["Akšam","20:34"], ["Jacija","22:14"]] },
+  "2026-08-22": { hijriDay:"09.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","03:59"], ["Izlaz sunca","05:44"], ["Podne","13:12"], ["Ikindija","17:02"], ["Akšam","20:31"], ["Jacija","22:11"]] },
+  "2026-08-23": { hijriDay:"10.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:02"], ["Izlaz sunca","05:46"], ["Podne","13:11"], ["Ikindija","17:01"], ["Akšam","20:29"], ["Jacija","22:09"]] },
+  "2026-08-24": { hijriDay:"11.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:04"], ["Izlaz sunca","05:48"], ["Podne","13:11"], ["Ikindija","16:59"], ["Akšam","20:26"], ["Jacija","22:06"]] },
+  "2026-08-25": { hijriDay:"12.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:07"], ["Izlaz sunca","05:50"], ["Podne","13:11"], ["Ikindija","16:58"], ["Akšam","20:23"], ["Jacija","22:03"]] },
+  "2026-08-26": { hijriDay:"13.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:09"], ["Izlaz sunca","05:52"], ["Podne","13:11"], ["Ikindija","16:56"], ["Akšam","20:21"], ["Jacija","22:01"]] },
+  "2026-08-27": { hijriDay:"14.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:11"], ["Izlaz sunca","05:54"], ["Podne","13:10"], ["Ikindija","16:55"], ["Akšam","20:18"], ["Jacija","21:58"]] },
+  "2026-08-28": { hijriDay:"15.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:14"], ["Izlaz sunca","05:56"], ["Podne","13:10"], ["Ikindija","16:53"], ["Akšam","20:15"], ["Jacija","21:55"]] },
+  "2026-08-29": { hijriDay:"16.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:16"], ["Izlaz sunca","05:58"], ["Podne","13:10"], ["Ikindija","16:51"], ["Akšam","20:13"], ["Jacija","21:53"]] },
+  "2026-08-30": { hijriDay:"17.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:18"], ["Izlaz sunca","06:01"], ["Podne","13:09"], ["Ikindija","16:50"], ["Akšam","20:10"], ["Jacija","21:50"]] },
+  "2026-08-31": { hijriDay:"18.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:21"], ["Izlaz sunca","06:03"], ["Podne","13:09"], ["Ikindija","16:48"], ["Akšam","20:07"], ["Jacija","21:47"]] },
+  "2026-09-01": { hijriDay:"19.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:23"], ["Izlaz sunca","06:05"], ["Podne","13:09"], ["Ikindija","16:46"], ["Akšam","20:05"], ["Jacija","21:45"]] },
+  "2026-09-02": { hijriDay:"20.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:25"], ["Izlaz sunca","06:07"], ["Podne","13:08"], ["Ikindija","16:45"], ["Akšam","20:02"], ["Jacija","21:42"]] },
+  "2026-09-03": { hijriDay:"21.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:28"], ["Izlaz sunca","06:09"], ["Podne","13:08"], ["Ikindija","16:43"], ["Akšam","19:59"], ["Jacija","21:39"]] },
+  "2026-09-04": { hijriDay:"22.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:30"], ["Izlaz sunca","06:11"], ["Podne","13:08"], ["Ikindija","16:41"], ["Akšam","19:57"], ["Jacija","21:37"]] },
+  "2026-09-05": { hijriDay:"23.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:33"], ["Izlaz sunca","06:13"], ["Podne","13:07"], ["Ikindija","16:39"], ["Akšam","19:54"], ["Jacija","21:34"]] },
+  "2026-09-06": { hijriDay:"24.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:35"], ["Izlaz sunca","06:15"], ["Podne","13:07"], ["Ikindija","16:38"], ["Akšam","19:51"], ["Jacija","21:31"]] },
+  "2026-09-07": { hijriDay:"25.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:37"], ["Izlaz sunca","06:17"], ["Podne","13:07"], ["Ikindija","16:36"], ["Akšam","19:48"], ["Jacija","21:28"]] },
+  "2026-09-08": { hijriDay:"26.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:40"], ["Izlaz sunca","06:19"], ["Podne","13:06"], ["Ikindija","16:34"], ["Akšam","19:46"], ["Jacija","21:26"]] },
+  "2026-09-09": { hijriDay:"27.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:42"], ["Izlaz sunca","06:21"], ["Podne","13:06"], ["Ikindija","16:32"], ["Akšam","19:43"], ["Jacija","21:23"]] },
+  "2026-09-10": { hijriDay:"28.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:44"], ["Izlaz sunca","06:23"], ["Podne","13:06"], ["Ikindija","16:31"], ["Akšam","19:40"], ["Jacija","21:20"]] },
+  "2026-09-11": { hijriDay:"29.", hijriMonth:"rebi'u-l-evvel", hijriYear:"1448", prayers:[["Zora","04:47"], ["Izlaz sunca","06:25"], ["Podne","13:05"], ["Ikindija","16:29"], ["Akšam","19:37"], ["Jacija","21:17"]] },
+  "2026-09-12": { hijriDay:"01.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","04:49"], ["Izlaz sunca","06:27"], ["Podne","13:05"], ["Ikindija","16:27"], ["Akšam","19:35"], ["Jacija","21:15"]] },
+  "2026-09-13": { hijriDay:"02.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","04:51"], ["Izlaz sunca","06:29"], ["Podne","13:05"], ["Ikindija","16:25"], ["Akšam","19:32"], ["Jacija","21:12"]] },
+  "2026-09-14": { hijriDay:"03.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","04:54"], ["Izlaz sunca","06:31"], ["Podne","13:04"], ["Ikindija","16:23"], ["Akšam","19:29"], ["Jacija","21:09"]] },
+  "2026-09-15": { hijriDay:"04.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","04:56"], ["Izlaz sunca","06:33"], ["Podne","13:04"], ["Ikindija","16:21"], ["Akšam","19:26"], ["Jacija","21:06"]] },
+  "2026-09-16": { hijriDay:"05.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","04:58"], ["Izlaz sunca","06:36"], ["Podne","13:04"], ["Ikindija","16:19"], ["Akšam","19:24"], ["Jacija","21:04"]] },
+  "2026-09-17": { hijriDay:"06.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:01"], ["Izlaz sunca","06:38"], ["Podne","13:03"], ["Ikindija","16:17"], ["Akšam","19:21"], ["Jacija","21:01"]] },
+  "2026-09-18": { hijriDay:"07.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:03"], ["Izlaz sunca","06:40"], ["Podne","13:03"], ["Ikindija","16:15"], ["Akšam","19:18"], ["Jacija","20:58"]] },
+  "2026-09-19": { hijriDay:"08.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:06"], ["Izlaz sunca","06:42"], ["Podne","13:03"], ["Ikindija","16:13"], ["Akšam","19:15"], ["Jacija","20:55"]] },
+  "2026-09-20": { hijriDay:"09.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:08"], ["Izlaz sunca","06:44"], ["Podne","13:02"], ["Ikindija","16:12"], ["Akšam","19:12"], ["Jacija","20:52"]] },
+  "2026-09-21": { hijriDay:"10.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:10"], ["Izlaz sunca","06:46"], ["Podne","13:02"], ["Ikindija","16:10"], ["Akšam","19:10"], ["Jacija","20:50"]] },
+  "2026-09-22": { hijriDay:"11.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:13"], ["Izlaz sunca","06:48"], ["Podne","13:01"], ["Ikindija","16:08"], ["Akšam","19:07"], ["Jacija","20:47"]] },
+  "2026-09-23": { hijriDay:"12.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:15"], ["Izlaz sunca","06:50"], ["Podne","13:01"], ["Ikindija","16:06"], ["Akšam","19:04"], ["Jacija","20:44"]] },
+  "2026-09-24": { hijriDay:"13.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:17"], ["Izlaz sunca","06:52"], ["Podne","13:01"], ["Ikindija","16:04"], ["Akšam","19:01"], ["Jacija","20:41"]] },
+  "2026-09-25": { hijriDay:"14.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:19"], ["Izlaz sunca","06:54"], ["Podne","13:00"], ["Ikindija","16:02"], ["Akšam","18:59"], ["Jacija","20:39"]] },
+  "2026-09-26": { hijriDay:"15.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:20"], ["Izlaz sunca","06:56"], ["Podne","13:00"], ["Ikindija","16:00"], ["Akšam","18:56"], ["Jacija","20:36"]] },
+  "2026-09-27": { hijriDay:"16.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:22"], ["Izlaz sunca","06:58"], ["Podne","13:00"], ["Ikindija","15:58"], ["Akšam","18:53"], ["Jacija","20:33"]] },
+  "2026-09-28": { hijriDay:"17.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:24"], ["Izlaz sunca","07:00"], ["Podne","12:59"], ["Ikindija","15:56"], ["Akšam","18:50"], ["Jacija","20:30"]] },
+  "2026-09-29": { hijriDay:"18.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:26"], ["Izlaz sunca","07:02"], ["Podne","12:59"], ["Ikindija","15:54"], ["Akšam","18:48"], ["Jacija","20:28"]] },
+  "2026-09-30": { hijriDay:"19.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:28"], ["Izlaz sunca","07:04"], ["Podne","12:59"], ["Ikindija","15:52"], ["Akšam","18:45"], ["Jacija","20:25"]] },
+  "2026-10-01": { hijriDay:"20.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:30"], ["Izlaz sunca","07:07"], ["Podne","12:58"], ["Ikindija","15:50"], ["Akšam","18:42"], ["Jacija","20:22"]] },
+  "2026-10-02": { hijriDay:"21.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:32"], ["Izlaz sunca","07:09"], ["Podne","12:58"], ["Ikindija","15:48"], ["Akšam","18:39"], ["Jacija","20:19"]] },
+  "2026-10-03": { hijriDay:"22.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:34"], ["Izlaz sunca","07:11"], ["Podne","12:58"], ["Ikindija","15:46"], ["Akšam","18:37"], ["Jacija","20:17"]] },
+  "2026-10-04": { hijriDay:"23.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:36"], ["Izlaz sunca","07:13"], ["Podne","12:58"], ["Ikindija","15:43"], ["Akšam","18:34"], ["Jacija","20:14"]] },
+  "2026-10-05": { hijriDay:"24.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:38"], ["Izlaz sunca","07:15"], ["Podne","12:57"], ["Ikindija","15:41"], ["Akšam","18:31"], ["Jacija","20:11"]] },
+  "2026-10-06": { hijriDay:"25.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:40"], ["Izlaz sunca","07:17"], ["Podne","12:57"], ["Ikindija","15:39"], ["Akšam","18:29"], ["Jacija","20:09"]] },
+  "2026-10-07": { hijriDay:"26.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:42"], ["Izlaz sunca","07:19"], ["Podne","12:57"], ["Ikindija","15:37"], ["Akšam","18:26"], ["Jacija","20:06"]] },
+  "2026-10-08": { hijriDay:"27.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:44"], ["Izlaz sunca","07:21"], ["Podne","12:56"], ["Ikindija","15:35"], ["Akšam","18:23"], ["Jacija","20:03"]] },
+  "2026-10-09": { hijriDay:"28.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:46"], ["Izlaz sunca","07:23"], ["Podne","12:56"], ["Ikindija","15:33"], ["Akšam","18:21"], ["Jacija","20:01"]] },
+  "2026-10-10": { hijriDay:"29.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:48"], ["Izlaz sunca","07:26"], ["Podne","12:56"], ["Ikindija","15:31"], ["Akšam","18:18"], ["Jacija","19:58"]] },
+  "2026-10-11": { hijriDay:"30.", hijriMonth:"rebi'u-l-ahir", hijriYear:"1448", prayers:[["Zora","05:50"], ["Izlaz sunca","07:28"], ["Podne","12:56"], ["Ikindija","15:29"], ["Akšam","18:15"], ["Jacija","19:55"]] },
+  "2026-10-12": { hijriDay:"01.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:53"], ["Izlaz sunca","07:30"], ["Podne","12:55"], ["Ikindija","15:27"], ["Akšam","18:13"], ["Jacija","19:53"]] },
+  "2026-10-13": { hijriDay:"02.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:55"], ["Izlaz sunca","07:32"], ["Podne","12:55"], ["Ikindija","15:25"], ["Akšam","18:10"], ["Jacija","19:50"]] },
+  "2026-10-14": { hijriDay:"03.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:57"], ["Izlaz sunca","07:34"], ["Podne","12:55"], ["Ikindija","15:23"], ["Akšam","18:07"], ["Jacija","19:47"]] },
+  "2026-10-15": { hijriDay:"04.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:59"], ["Izlaz sunca","07:36"], ["Podne","12:55"], ["Ikindija","15:21"], ["Akšam","18:05"], ["Jacija","19:45"]] },
+  "2026-10-16": { hijriDay:"05.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:01"], ["Izlaz sunca","07:38"], ["Podne","12:54"], ["Ikindija","15:19"], ["Akšam","18:02"], ["Jacija","19:42"]] },
+  "2026-10-17": { hijriDay:"06.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:03"], ["Izlaz sunca","07:41"], ["Podne","12:54"], ["Ikindija","15:17"], ["Akšam","18:00"], ["Jacija","19:40"]] },
+  "2026-10-18": { hijriDay:"07.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:05"], ["Izlaz sunca","07:43"], ["Podne","12:54"], ["Ikindija","15:15"], ["Akšam","17:57"], ["Jacija","19:37"]] },
+  "2026-10-19": { hijriDay:"08.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:07"], ["Izlaz sunca","07:45"], ["Podne","12:54"], ["Ikindija","15:13"], ["Akšam","17:54"], ["Jacija","19:34"]] },
+  "2026-10-20": { hijriDay:"09.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:09"], ["Izlaz sunca","07:47"], ["Podne","12:54"], ["Ikindija","15:11"], ["Akšam","17:52"], ["Jacija","19:32"]] },
+  "2026-10-21": { hijriDay:"10.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:11"], ["Izlaz sunca","07:49"], ["Podne","12:53"], ["Ikindija","15:09"], ["Akšam","17:49"], ["Jacija","19:29"]] },
+  "2026-10-22": { hijriDay:"11.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:13"], ["Izlaz sunca","07:52"], ["Podne","12:53"], ["Ikindija","15:08"], ["Akšam","17:47"], ["Jacija","19:27"]] },
+  "2026-10-23": { hijriDay:"12.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:15"], ["Izlaz sunca","07:54"], ["Podne","12:53"], ["Ikindija","15:06"], ["Akšam","17:44"], ["Jacija","19:24"]] },
+  "2026-10-24": { hijriDay:"13.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","06:17"], ["Izlaz sunca","07:56"], ["Podne","12:53"], ["Ikindija","15:04"], ["Akšam","17:42"], ["Jacija","19:22"]] },
+  "2026-10-25": { hijriDay:"14.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:20"], ["Izlaz sunca","06:58"], ["Podne","11:53"], ["Ikindija","14:02"], ["Akšam","16:39"], ["Jacija","18:19"]] },
+  "2026-10-26": { hijriDay:"15.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:22"], ["Izlaz sunca","07:00"], ["Podne","11:53"], ["Ikindija","14:00"], ["Akšam","16:37"], ["Jacija","18:17"]] },
+  "2026-10-27": { hijriDay:"16.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:24"], ["Izlaz sunca","07:03"], ["Podne","11:53"], ["Ikindija","13:58"], ["Akšam","16:35"], ["Jacija","18:15"]] },
+  "2026-10-28": { hijriDay:"17.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:26"], ["Izlaz sunca","07:05"], ["Podne","11:53"], ["Ikindija","13:56"], ["Akšam","16:32"], ["Jacija","18:12"]] },
+  "2026-10-29": { hijriDay:"18.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:28"], ["Izlaz sunca","07:07"], ["Podne","11:53"], ["Ikindija","13:55"], ["Akšam","16:30"], ["Jacija","18:10"]] },
+  "2026-10-30": { hijriDay:"19.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:30"], ["Izlaz sunca","07:09"], ["Podne","11:52"], ["Ikindija","13:53"], ["Akšam","16:28"], ["Jacija","18:08"]] },
+  "2026-10-31": { hijriDay:"20.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:32"], ["Izlaz sunca","07:12"], ["Podne","11:52"], ["Ikindija","13:51"], ["Akšam","16:25"], ["Jacija","18:05"]] },
+  "2026-11-01": { hijriDay:"21.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:34"], ["Izlaz sunca","07:14"], ["Podne","11:52"], ["Ikindija","13:49"], ["Akšam","16:23"], ["Jacija","18:03"]] },
+  "2026-11-02": { hijriDay:"22.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:37"], ["Izlaz sunca","07:16"], ["Podne","11:52"], ["Ikindija","13:47"], ["Akšam","16:21"], ["Jacija","18:01"]] },
+  "2026-11-03": { hijriDay:"23.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:39"], ["Izlaz sunca","07:18"], ["Podne","11:52"], ["Ikindija","13:46"], ["Akšam","16:18"], ["Jacija","17:58"]] },
+  "2026-11-04": { hijriDay:"24.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:41"], ["Izlaz sunca","07:21"], ["Podne","11:52"], ["Ikindija","13:44"], ["Akšam","16:16"], ["Jacija","17:56"]] },
+  "2026-11-05": { hijriDay:"25.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:43"], ["Izlaz sunca","07:23"], ["Podne","11:52"], ["Ikindija","13:42"], ["Akšam","16:14"], ["Jacija","17:54"]] },
+  "2026-11-06": { hijriDay:"26.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:45"], ["Izlaz sunca","07:25"], ["Podne","11:52"], ["Ikindija","13:41"], ["Akšam","16:12"], ["Jacija","17:52"]] },
+  "2026-11-07": { hijriDay:"27.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:47"], ["Izlaz sunca","07:27"], ["Podne","11:53"], ["Ikindija","13:39"], ["Akšam","16:10"], ["Jacija","17:50"]] },
+  "2026-11-08": { hijriDay:"28.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:49"], ["Izlaz sunca","07:29"], ["Podne","11:53"], ["Ikindija","13:38"], ["Akšam","16:08"], ["Jacija","17:48"]] },
+  "2026-11-09": { hijriDay:"29.", hijriMonth:"džumade-l-ula", hijriYear:"1448", prayers:[["Zora","05:51"], ["Izlaz sunca","07:32"], ["Podne","11:53"], ["Ikindija","13:36"], ["Akšam","16:06"], ["Jacija","17:46"]] },
+  "2026-11-10": { hijriDay:"01.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","05:54"], ["Izlaz sunca","07:34"], ["Podne","11:53"], ["Ikindija","13:35"], ["Akšam","16:04"], ["Jacija","17:44"]] },
+  "2026-11-11": { hijriDay:"02.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","05:56"], ["Izlaz sunca","07:36"], ["Podne","11:53"], ["Ikindija","13:33"], ["Akšam","16:02"], ["Jacija","17:42"]] },
+  "2026-11-12": { hijriDay:"03.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","05:58"], ["Izlaz sunca","07:38"], ["Podne","11:53"], ["Ikindija","13:32"], ["Akšam","16:00"], ["Jacija","17:40"]] },
+  "2026-11-13": { hijriDay:"04.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:00"], ["Izlaz sunca","07:40"], ["Podne","11:53"], ["Ikindija","13:30"], ["Akšam","15:58"], ["Jacija","17:38"]] },
+  "2026-11-14": { hijriDay:"05.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:02"], ["Izlaz sunca","07:43"], ["Podne","11:53"], ["Ikindija","13:29"], ["Akšam","15:56"], ["Jacija","17:36"]] },
+  "2026-11-15": { hijriDay:"06.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:04"], ["Izlaz sunca","07:45"], ["Podne","11:53"], ["Ikindija","13:28"], ["Akšam","15:54"], ["Jacija","17:34"]] },
+  "2026-11-16": { hijriDay:"07.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:06"], ["Izlaz sunca","07:47"], ["Podne","11:54"], ["Ikindija","13:26"], ["Akšam","15:52"], ["Jacija","17:32"]] },
+  "2026-11-17": { hijriDay:"08.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:08"], ["Izlaz sunca","07:49"], ["Podne","11:54"], ["Ikindija","13:25"], ["Akšam","15:51"], ["Jacija","17:31"]] },
+  "2026-11-18": { hijriDay:"09.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:10"], ["Izlaz sunca","07:51"], ["Podne","11:54"], ["Ikindija","13:24"], ["Akšam","15:49"], ["Jacija","17:29"]] },
+  "2026-11-19": { hijriDay:"10.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:12"], ["Izlaz sunca","07:53"], ["Podne","11:54"], ["Ikindija","13:23"], ["Akšam","15:47"], ["Jacija","17:27"]] },
+  "2026-11-20": { hijriDay:"11.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:14"], ["Izlaz sunca","07:55"], ["Podne","11:55"], ["Ikindija","13:22"], ["Akšam","15:46"], ["Jacija","17:26"]] },
+  "2026-11-21": { hijriDay:"12.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:16"], ["Izlaz sunca","07:57"], ["Podne","11:55"], ["Ikindija","13:21"], ["Akšam","15:44"], ["Jacija","17:24"]] },
+  "2026-11-22": { hijriDay:"13.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:18"], ["Izlaz sunca","08:00"], ["Podne","11:55"], ["Ikindija","13:20"], ["Akšam","15:43"], ["Jacija","17:23"]] },
+  "2026-11-23": { hijriDay:"14.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:20"], ["Izlaz sunca","08:02"], ["Podne","11:55"], ["Ikindija","13:19"], ["Akšam","15:41"], ["Jacija","17:21"]] },
+  "2026-11-24": { hijriDay:"15.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:22"], ["Izlaz sunca","08:04"], ["Podne","11:56"], ["Ikindija","13:18"], ["Akšam","15:40"], ["Jacija","17:20"]] },
+  "2026-11-25": { hijriDay:"16.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:24"], ["Izlaz sunca","08:06"], ["Podne","11:56"], ["Ikindija","13:17"], ["Akšam","15:38"], ["Jacija","17:18"]] },
+  "2026-11-26": { hijriDay:"17.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:25"], ["Izlaz sunca","08:07"], ["Podne","11:56"], ["Ikindija","13:16"], ["Akšam","15:37"], ["Jacija","17:17"]] },
+  "2026-11-27": { hijriDay:"18.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:27"], ["Izlaz sunca","08:09"], ["Podne","11:57"], ["Ikindija","13:15"], ["Akšam","15:36"], ["Jacija","17:16"]] },
+  "2026-11-28": { hijriDay:"19.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:29"], ["Izlaz sunca","08:11"], ["Podne","11:57"], ["Ikindija","13:14"], ["Akšam","15:35"], ["Jacija","17:15"]] },
+  "2026-11-29": { hijriDay:"20.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:31"], ["Izlaz sunca","08:13"], ["Podne","11:57"], ["Ikindija","13:14"], ["Akšam","15:34"], ["Jacija","17:14"]] },
+  "2026-11-30": { hijriDay:"21.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:32"], ["Izlaz sunca","08:15"], ["Podne","11:58"], ["Ikindija","13:13"], ["Akšam","15:33"], ["Jacija","17:13"]] },
+  "2026-12-01": { hijriDay:"22.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:34"], ["Izlaz sunca","08:17"], ["Podne","11:58"], ["Ikindija","13:12"], ["Akšam","15:32"], ["Jacija","17:12"]] },
+  "2026-12-02": { hijriDay:"23.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:36"], ["Izlaz sunca","08:18"], ["Podne","11:58"], ["Ikindija","13:12"], ["Akšam","15:31"], ["Jacija","17:11"]] },
+  "2026-12-03": { hijriDay:"24.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:37"], ["Izlaz sunca","08:20"], ["Podne","11:59"], ["Ikindija","13:11"], ["Akšam","15:30"], ["Jacija","17:10"]] },
+  "2026-12-04": { hijriDay:"25.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:39"], ["Izlaz sunca","08:22"], ["Podne","11:59"], ["Ikindija","13:11"], ["Akšam","15:29"], ["Jacija","17:09"]] },
+  "2026-12-05": { hijriDay:"26.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:40"], ["Izlaz sunca","08:23"], ["Podne","12:00"], ["Ikindija","13:10"], ["Akšam","15:28"], ["Jacija","17:08"]] },
+  "2026-12-06": { hijriDay:"27.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:42"], ["Izlaz sunca","08:25"], ["Podne","12:00"], ["Ikindija","13:10"], ["Akšam","15:28"], ["Jacija","17:08"]] },
+  "2026-12-07": { hijriDay:"28.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:43"], ["Izlaz sunca","08:26"], ["Podne","12:00"], ["Ikindija","13:10"], ["Akšam","15:27"], ["Jacija","17:07"]] },
+  "2026-12-08": { hijriDay:"29.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:44"], ["Izlaz sunca","08:28"], ["Podne","12:01"], ["Ikindija","13:10"], ["Akšam","15:27"], ["Jacija","17:07"]] },
+  "2026-12-09": { hijriDay:"30.", hijriMonth:"džumade-l-uhra", hijriYear:"1448", prayers:[["Zora","06:46"], ["Izlaz sunca","08:29"], ["Podne","12:01"], ["Ikindija","13:09"], ["Akšam","15:26"], ["Jacija","17:06"]] },
+  "2026-12-10": { hijriDay:"01.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:47"], ["Izlaz sunca","08:30"], ["Podne","12:02"], ["Ikindija","13:09"], ["Akšam","15:26"], ["Jacija","17:06"]] },
+  "2026-12-11": { hijriDay:"02.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:48"], ["Izlaz sunca","08:31"], ["Podne","12:02"], ["Ikindija","13:09"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-12": { hijriDay:"03.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:49"], ["Izlaz sunca","08:33"], ["Podne","12:03"], ["Ikindija","13:09"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-13": { hijriDay:"04.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:50"], ["Izlaz sunca","08:34"], ["Podne","12:03"], ["Ikindija","13:09"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-14": { hijriDay:"05.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:51"], ["Izlaz sunca","08:35"], ["Podne","12:04"], ["Ikindija","13:09"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-15": { hijriDay:"06.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:52"], ["Izlaz sunca","08:36"], ["Podne","12:04"], ["Ikindija","13:09"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-16": { hijriDay:"07.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:53"], ["Izlaz sunca","08:37"], ["Podne","12:05"], ["Ikindija","13:10"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-17": { hijriDay:"08.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:53"], ["Izlaz sunca","08:38"], ["Podne","12:05"], ["Ikindija","13:10"], ["Akšam","15:25"], ["Jacija","17:05"]] },
+  "2026-12-18": { hijriDay:"09.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:54"], ["Izlaz sunca","08:38"], ["Podne","12:06"], ["Ikindija","13:10"], ["Akšam","15:26"], ["Jacija","17:06"]] },
+  "2026-12-19": { hijriDay:"10.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:55"], ["Izlaz sunca","08:39"], ["Podne","12:06"], ["Ikindija","13:11"], ["Akšam","15:26"], ["Jacija","17:06"]] },
+  "2026-12-20": { hijriDay:"11.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:55"], ["Izlaz sunca","08:40"], ["Podne","12:07"], ["Ikindija","13:11"], ["Akšam","15:26"], ["Jacija","17:06"]] },
+  "2026-12-21": { hijriDay:"12.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:56"], ["Izlaz sunca","08:40"], ["Podne","12:07"], ["Ikindija","13:11"], ["Akšam","15:27"], ["Jacija","17:07"]] },
+  "2026-12-22": { hijriDay:"13.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:56"], ["Izlaz sunca","08:41"], ["Podne","12:08"], ["Ikindija","13:12"], ["Akšam","15:27"], ["Jacija","17:07"]] },
+  "2026-12-23": { hijriDay:"14.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:57"], ["Izlaz sunca","08:41"], ["Podne","12:08"], ["Ikindija","13:12"], ["Akšam","15:28"], ["Jacija","17:08"]] },
+  "2026-12-24": { hijriDay:"15.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:57"], ["Izlaz sunca","08:42"], ["Podne","12:09"], ["Ikindija","13:13"], ["Akšam","15:29"], ["Jacija","17:09"]] },
+  "2026-12-25": { hijriDay:"16.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:57"], ["Izlaz sunca","08:42"], ["Podne","12:09"], ["Ikindija","13:14"], ["Akšam","15:29"], ["Jacija","17:09"]] },
+  "2026-12-26": { hijriDay:"17.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:09"], ["Ikindija","13:14"], ["Akšam","15:30"], ["Jacija","17:10"]] },
+  "2026-12-27": { hijriDay:"18.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:10"], ["Ikindija","13:15"], ["Akšam","15:31"], ["Jacija","17:11"]] },
+  "2026-12-28": { hijriDay:"19.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:10"], ["Ikindija","13:16"], ["Akšam","15:32"], ["Jacija","17:12"]] },
+  "2026-12-29": { hijriDay:"20.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:11"], ["Ikindija","13:17"], ["Akšam","15:33"], ["Jacija","17:13"]] },
+  "2026-12-30": { hijriDay:"21.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:11"], ["Ikindija","13:18"], ["Akšam","15:34"], ["Jacija","17:14"]] },
+  "2026-12-31": { hijriDay:"22.", hijriMonth:"redžeb", hijriYear:"1448", prayers:[["Zora","06:58"], ["Izlaz sunca","08:42"], ["Podne","12:12"], ["Ikindija","13:19"], ["Akšam","15:35"], ["Jacija","17:15"]] },
+};
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function dateKey(d) { return d.toISOString().slice(0,10); }
+function getScheduleForDate(d) { return schedule[dateKey(d)] || null; }
+
+function getCurrentPrayers() {
+  const data = getScheduleForDate(new Date());
+  if (!data) return [];
+  return data.prayers;
+}
+
+function getNextPrayer() {
+  const now = new Date();
+  const todayData = getScheduleForDate(now);
+  if (!todayData) return null;
+  const prayers = todayData.prayers;
+  for (let i = 0; i < prayers.length; i++) {
+    const [h,m] = prayers[i][1].split(":").map(Number);
+    const d = new Date(now); d.setHours(h,m,0,0);
+    if (d > now) return { index:i, time:d, prayers, isTomorrow:false };
+  }
+  const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowData = getScheduleForDate(tomorrow);
+  if (!tomorrowData) return null;
+  const tomorrowPrayers = tomorrowData.prayers;
+  const [h,m] = tomorrowPrayers[0][1].split(":").map(Number);
+  const d = new Date(tomorrow); d.setHours(h,m,0,0);
+  return { index:0, time:d, prayers:tomorrowPrayers, isTomorrow:true };
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('sv-SE', {hour12:false});
+}
+
+function updateDates() {
+  const now = new Date();
+  const data = getScheduleForDate(now);
+  document.getElementById('gregDayName').textContent = weekdayMap[now.getDay()];
+  document.getElementById('gregDay').textContent = now.getDate() + '.';
+  document.getElementById('gregMonth').textContent = monthMap[now.getMonth()];
+  document.getElementById('gregYear').textContent = now.getFullYear();
+  document.getElementById('hijriDayName').textContent = weekdayMap[now.getDay()];
+  if (data) {
+    document.getElementById('hijriDay').textContent = data.hijriDay;
+    document.getElementById('hijriMonth').textContent = data.hijriMonth;
+    document.getElementById('hijriYear').textContent = data.hijriYear;
+  } else {
+    document.getElementById('hijriDay').textContent = '--';
+    document.getElementById('hijriMonth').textContent = '---';
+    document.getElementById('hijriYear').textContent = '----';
+  }
+}
+
+function updatePrayerTimes() {
+  const prayers = getCurrentPrayers();
+  const status = document.getElementById('statusMsg');
+  if (!prayers.length) {
+    status.style.display = 'block';
+    status.textContent = 'Ingen vaktija inlagd för detta datum.';
+    for (let i=0;i<6;i++) document.getElementById('t'+i).textContent = '--:--';
+    return;
+  }
+  status.style.display = 'none';
+  prayers.forEach((p,i)=>{
+    const el = document.getElementById('t'+i);
+    if (el) el.textContent = p[1];
+  });
+}
+
+function getCountdownLabel(prayerName, isTomorrow) {
+  const labelMap = {
+    'Zora':'SABAH NAMAZA',
+    'Podne':'PODNE NAMAZA',
+    'Ikindija':'IKINDIJA NAMAZA',
+    'Akšam':'AKŠAM NAMAZA',
+    'Jacija':'JACIJA NAMAZA',
+    'Izlaz sunca':'IZLASKA SUNCA'
+  };
+  const core = labelMap[prayerName] || prayerName.toUpperCase();
+  return `VRIJEME DO ${isTomorrow ? 'SUTRA • ' : ''}${core}`;
+}
+
+function updateCountdown() {
+  const next = getNextPrayer();
+  if (!next) {
+    document.getElementById('countdown').textContent = '--:--:--';
+    document.getElementById('nextPrayerName').textContent = 'VAKTIJA NIJE DOSTUPNA';
+    return;
+  }
+  const diff = Math.max(0, next.time - new Date());
+  const h = Math.floor(diff/1000/60/60);
+  const m = Math.floor((diff/1000/60)%60);
+  const s = Math.floor((diff/1000)%60);
+  const prayerName = next.prayers[next.index][0];
+  document.getElementById('countdown').textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  document.getElementById('nextPrayerName').textContent = getCountdownLabel(prayerName, next.isTomorrow);
+}
+
+function updatePrayerAlert() {
+  const overlay = document.getElementById('prayerAlertOverlay');
+  const timerEl = document.getElementById('prayerAlertTimer');
+  const textEl = document.getElementById('prayerAlertText');
+  const next = getNextPrayer();
+  if (!next) { overlay.classList.remove('show'); return; }
+  const prayerName = next.prayers[next.index][0];
+  if (prayerName === 'Izlaz sunca') { overlay.classList.remove('show'); return; }
+  const totalSeconds = Math.max(0, Math.ceil((next.time - new Date()) / 1000));
+  if (totalSeconds <= 300) {
+    overlay.classList.add('show');
+    const mins = Math.floor(totalSeconds/60);
+    const secs = totalSeconds % 60;
+    timerEl.textContent = `${pad(mins)}:${pad(secs)}`;
+    const map = {Zora:'SABAH NAMAZA',Podne:'PODNE NAMAZA',Ikindija:'IKINDIJA NAMAZA',Akšam:'AKŠAM NAMAZA',Jacija:'JACIJA NAMAZA'};
+    textEl.textContent = map[prayerName] || `${prayerName.toUpperCase()} NAMAZA`;
+  } else {
+    overlay.classList.remove('show');
+  }
+}
+
+function refreshAll() {
+  updateClock();
+  updateDates();
+  updatePrayerTimes();
+  updateCountdown();
+  updatePrayerAlert();
+}
+
+let wakeLock = null;
+async function requestWakeLock() {
+  try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch(err){}
+}
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') requestWakeLock(); });
+function keepTvAlive() { document.body.setAttribute('data-keepalive', String(Date.now())); }
+async function enterFullscreen() { try { const el=document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) await el.requestFullscreen(); } catch(err){} }
+function initLgTvMode() { requestWakeLock(); enterFullscreen(); keepTvAlive(); setInterval(keepTvAlive, 20000); setInterval(requestWakeLock, 60000); }
+
+refreshAll();
+initLgTvMode();
+setInterval(() => { updateClock(); updateCountdown(); updatePrayerAlert(); }, 1000);
+setInterval(() => { updateDates(); updatePrayerTimes(); }, 60000);
+let lastDateKey = dateKey(new Date());
+setInterval(() => { const currentKey = dateKey(new Date()); if(currentKey !== lastDateKey) { lastDateKey = currentKey; location.reload(); } }, 60000);
+</script>
+</body>
+</html>
